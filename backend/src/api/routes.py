@@ -10,7 +10,9 @@ from ..agent.runner import get_agent_runner
 from ..services.auth import validate_jwt
 from ..services.context import (
     create_conversation,
+    get_conversation_detail,
     get_conversation_history,
+    list_user_conversations,
     save_message,
     update_conversation_timestamp,
 )
@@ -120,13 +122,13 @@ async def list_conversations(
     offset: int = 0,
 ):
     """
-    List user conversations.
+    List user conversations with pagination.
 
     Args:
         user_id: User UUID from path parameter
         authenticated_user_id: User UUID from JWT
         session: Database session
-        limit: Maximum number of conversations to return
+        limit: Maximum number of conversations to return (1-100)
         offset: Number of conversations to skip
 
     Returns:
@@ -136,8 +138,31 @@ async def list_conversations(
     if user_id != authenticated_user_id:
         raise HTTPException(status_code=403, detail="Forbidden: user_id mismatch")
 
-    # TODO: Implement conversation listing (Phase 9)
-    return {"conversations": [], "total": 0, "limit": limit, "offset": offset}
+    # Validate pagination parameters
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
+    try:
+        # Get conversations with pagination
+        conversations, total = await list_user_conversations(session, user_id, limit, offset)
+
+        # Convert datetime objects to ISO format strings
+        for conv in conversations:
+            conv["created_at"] = conv["created_at"].isoformat()
+            conv["updated_at"] = conv["updated_at"].isoformat()
+
+        return {
+            "conversations": conversations,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
+
+    except Exception as e:
+        import logging
+
+        logging.error(f"List conversations error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post("/{user_id}/conversations")
@@ -155,20 +180,29 @@ async def create_conversation_endpoint(
         session: Database session
 
     Returns:
-        Created conversation
+        Created conversation with message_count
     """
     # Verify user_id matches authenticated user
     if user_id != authenticated_user_id:
         raise HTTPException(status_code=403, detail="Forbidden: user_id mismatch")
 
-    # TODO: Implement conversation creation (Phase 9)
-    conversation = await create_conversation(session, user_id)
-    return {
-        "id": conversation.id,
-        "user_id": conversation.user_id,
-        "created_at": conversation.created_at,
-        "updated_at": conversation.updated_at,
-    }
+    try:
+        # Create new conversation
+        conversation = await create_conversation(session, user_id)
+
+        return {
+            "id": conversation.id,
+            "user_id": conversation.user_id,
+            "created_at": conversation.created_at.isoformat(),
+            "updated_at": conversation.updated_at.isoformat(),
+            "message_count": 0,
+        }
+
+    except Exception as e:
+        import logging
+
+        logging.error(f"Create conversation error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/{user_id}/conversations/{conversation_id}")
@@ -194,6 +228,24 @@ async def get_conversation(
     if user_id != authenticated_user_id:
         raise HTTPException(status_code=403, detail="Forbidden: user_id mismatch")
 
-    # TODO: Implement conversation retrieval (Phase 9)
-    conversation_history = await get_conversation_history(session, user_id, conversation_id)
-    return {"conversation_id": conversation_id, "messages": conversation_history}
+    try:
+        # Get conversation detail with messages
+        conversation_detail = await get_conversation_detail(session, user_id, conversation_id)
+
+        # Convert datetime objects to ISO format strings
+        conversation_detail["created_at"] = conversation_detail["created_at"].isoformat()
+        conversation_detail["updated_at"] = conversation_detail["updated_at"].isoformat()
+
+        for msg in conversation_detail["messages"]:
+            msg["created_at"] = msg["created_at"].isoformat()
+
+        return conversation_detail
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (404, 401)
+        raise
+    except Exception as e:
+        import logging
+
+        logging.error(f"Get conversation error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
