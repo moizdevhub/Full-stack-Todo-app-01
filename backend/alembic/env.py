@@ -23,9 +23,8 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all models here for autogenerate support
-from src.models.user import User  # noqa
-from src.models.todo import Todo  # noqa
-from src.models.tag import Tag, TodoTag  # noqa
+from src.models.conversation import Conversation  # noqa
+from src.models.message import Message  # noqa
 from sqlmodel import SQLModel
 
 target_metadata = SQLModel.metadata

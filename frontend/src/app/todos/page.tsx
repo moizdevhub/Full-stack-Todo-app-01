@@ -7,6 +7,8 @@ import { apiClient } from '@/lib/api-client';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ConfirmModal from '@/components/ConfirmModal';
+import ChatInterface from '@/components/ChatInterface';
+import { ChatMessage } from '@/types/chat';
 
 interface Todo {
   id: string;
@@ -64,6 +66,11 @@ export default function TodosPage() {
   const [pageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Chat sidebar state
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const [initialMessages] = useState<ChatMessage[]>([]);
 
   const { user, logout } = useAuth();
   const { showToast } = useToast();
@@ -302,6 +309,21 @@ export default function TodosPage() {
   const handleFilterChange = (newFilter: FilterType) => {
     setFilter(newFilter);
     setCurrentPage(1); // Reset to first page on filter change
+  };
+
+  // Chat handlers
+  const handleConversationCreated = (newConversationId: number) => {
+    setConversationId(newConversationId);
+  };
+
+  const handleChatMessageSent = () => {
+    // Refresh todos list when chatbot sends a message
+    // This ensures the list stays in sync with chatbot operations
+    fetchTodos();
+  };
+
+  const toggleChat = () => {
+    setIsChatOpen(!isChatOpen);
   };
 
   return (
@@ -854,6 +876,95 @@ export default function TodosPage() {
         cancelText="Cancel"
         isLoading={isDeleting}
       />
+
+      {/* Floating Chat Button */}
+      {!isChatOpen && (
+        <button
+          onClick={toggleChat}
+          className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 z-40"
+          aria-label="Open AI Assistant"
+        >
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+            />
+          </svg>
+        </button>
+      )}
+
+      {/* Chat Sidebar */}
+      <div
+        className={`fixed top-0 right-0 h-full w-full md:w-96 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${
+          isChatOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          {/* Chat Header */}
+          <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                />
+              </svg>
+              <h2 className="text-lg font-semibold">AI Assistant</h2>
+            </div>
+            <button
+              onClick={toggleChat}
+              className="text-white hover:text-gray-200 transition-colors"
+              aria-label="Close chat"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          {/* Chat Interface */}
+          <div className="flex-1 overflow-hidden">
+            <ChatInterface
+              conversationId={conversationId}
+              initialMessages={initialMessages}
+              onConversationCreated={handleConversationCreated}
+              onMessageSent={handleChatMessageSent}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Overlay when chat is open on mobile */}
+      {isChatOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={toggleChat}
+        />
+      )}
     </ProtectedRoute>
   );
 }

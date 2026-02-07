@@ -7,8 +7,8 @@ import { ToastProvider } from '@/contexts/ToastContext'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Todo App',
-  description: 'Full-stack todo application with Next.js and FastAPI',
+  title: 'AI Todo Assistant',
+  description: 'AI-powered conversational todo management with natural language interface',
 }
 
 export default function RootLayout({

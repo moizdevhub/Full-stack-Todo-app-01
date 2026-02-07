@@ -1,28 +1,32 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+
 export default function Home() {
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (user) {
+        // Redirect authenticated users to todos page
+        router.push('/todos');
+      } else {
+        // Redirect unauthenticated users to login
+        router.push('/login');
+      }
+    }
+  }, [user, isLoading, router]);
+
+  // Show loading state while checking authentication
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-center font-mono text-sm">
-        <h1 className="text-4xl font-bold text-center mb-8">
-          Todo Application
-        </h1>
-        <p className="text-center text-lg mb-4">
-          Full-stack todo application with Next.js and FastAPI
-        </p>
-        <div className="flex gap-4 justify-center">
-          <a
-            href="/login"
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            Login
-          </a>
-          <a
-            href="/register"
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-          >
-            Register
-          </a>
-        </div>
+    <main className="flex h-screen items-center justify-center">
+      <div className="text-center">
+        <div className="mb-4 text-4xl">📝</div>
+        <p className="text-gray-600">Loading...</p>
       </div>
     </main>
-  )
+  );
 }

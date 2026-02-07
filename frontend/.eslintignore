@@ -1,0 +1,22 @@
+# ESLint ignore patterns
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+.vercel/
+.turbo/
+
+# Build outputs
+*.min.js
+
+# Generated files
+.next/
+next-env.d.ts
+
+# Test coverage
+coverage/
+
+# Logs
+*.log

@@ -1,0 +1,395 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/mcp-tools-v1.json",
+  "version": "1.0.0",
+  "server": {
+    "name": "todo-mcp-server",
+    "version": "1.0.0",
+    "description": "MCP server for stateless todo task operations"
+  },
+  "tools": [
+    {
+      "name": "add_task",
+      "description": "Create a new task for the user. Use this when the user wants to add, create, or remember something.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["user_id", "title"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID from JWT sub claim (required for data isolation)"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Task title or description (1-200 characters)"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Optional additional details about the task (max 2000 characters)"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "description": "Unique identifier for the created task"
+          },
+          "title": {
+            "type": "string",
+            "description": "Task title as stored"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "Task description (null if not provided)"
+          },
+          "completed": {
+            "type": "boolean",
+            "description": "Task completion status (always false for new tasks)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when task was created"
+          }
+        }
+      },
+      "examples": [
+        {
+          "input": {
+            "user_id": "550e8400-e29b-41d4-a716-446655440000",
+            "title": "Buy milk"
+          },
+          "output": {
+            "task_id": 42,
+            "title": "Buy milk",
+            "description": null,
+            "completed": false,
+            "created_at": "2026-01-24T10:30:00Z"
+          }
+        },
+        {
+          "input": {
+            "user_id": "550e8400-e29b-41d4-a716-446655440000",
+            "title": "Call dentist",
+            "description": "Schedule appointment for next week"
+          },
+          "output": {
+            "task_id": 43,
+            "title": "Call dentist",
+            "description": "Schedule appointment for next week",
+            "completed": false,
+            "created_at": "2026-01-24T10:31:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "name": "list_tasks",
+      "description": "Retrieve tasks for the user with optional filtering by completion status. Use this when the user wants to see their tasks, check what's pending, or review completed items.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["user_id"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID from JWT sub claim (required for data isolation)"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["all", "pending", "completed"],
+            "default": "all",
+            "description": "Filter tasks by completion status"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "task_id": {
+                  "type": "integer"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "completed": {
+                  "type": "boolean"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of tasks returned"
+          },
+          "status_filter": {
+            "type": "string",
+            "description": "Filter applied (all, pending, or completed)"
+          }
+        }
+      },
+      "examples": [
+        {
+          "input": {
+            "user_id": "550e8400-e29b-41d4-a716-446655440000",
+            "status": "pending"
+          },
+          "output": {
+            "tasks": [
+              {
+                "task_id": 42,
+                "title": "Buy milk",
+                "description": null,
+                "completed": false,
+                "created_at": "2026-01-24T10:30:00Z",
+                "updated_at": "2026-01-24T10:30:00Z"
+              }
+            ],
+            "total": 1,
+            "status_filter": "pending"
+          }
+        }
+      ]
+    },
+    {
+      "name": "complete_task",
+      "description": "Mark a task as completed. Use this when the user indicates they've finished a task.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["user_id", "task_id"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID from JWT sub claim (required for data isolation)"
+          },
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the task to mark as completed"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "boolean",
+            "description": "Always true after successful completion"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "TASK_NOT_FOUND",
+          "message": "Task not found or does not belong to user"
+        }
+      ],
+      "examples": [
+        {
+          "input": {
+            "user_id": "550e8400-e29b-41d4-a716-446655440000",
+            "task_id": 42
+          },
+          "output": {
+            "task_id": 42,
+            "title": "Buy milk",
+            "completed": true,
+            "updated_at": "2026-01-24T10:35:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "name": "delete_task",
+      "description": "Permanently delete a task. Use this when the user wants to remove a task from their list.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["user_id", "task_id"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID from JWT sub claim (required for data isolation)"
+          },
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the task to delete"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the deleted task"
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Always true after successful deletion"
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "TASK_NOT_FOUND",
+          "message": "Task not found or does not belong to user"
+        }
+      ],
+      "examples": [
+        {
+          "input": {
+            "user_id": "550e8400-e29b-41d4-a716-446655440000",
+            "task_id": 42
+          },
+          "output": {
+            "task_id": 42,
+            "deleted": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_task",
+      "description": "Update an existing task's title or description. Use this when the user wants to modify task details.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["user_id", "task_id"],
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID from JWT sub claim (required for data isolation)"
+          },
+          "task_id": {
+            "type": "integer",
+            "description": "ID of the task to update"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "New task title (optional)"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true,
+            "description": "New task description (optional, null to clear)"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "errors": [
+        {
+          "code": "TASK_NOT_FOUND",
+          "message": "Task not found or does not belong to user"
+        },
+        {
+          "code": "VALIDATION_ERROR",
+          "message": "At least one field (title or description) must be provided"
+        }
+      ],
+      "examples": [
+        {
+          "input": {
+            "user_id": "550e8400-e29b-41d4-a716-446655440000",
+            "task_id": 42,
+            "title": "Buy almond milk"
+          },
+          "output": {
+            "task_id": 42,
+            "title": "Buy almond milk",
+            "description": null,
+            "completed": false,
+            "updated_at": "2026-01-24T10:40:00Z"
+          }
+        }
+      ]
+    }
+  ],
+  "stateless": true,
+  "dataIsolation": {
+    "enabled": true,
+    "mechanism": "user_id parameter required on all tools",
+    "description": "All tools require user_id parameter for data isolation. Server does not maintain session state. All context is reconstructed from database on each tool invocation."
+  },
+  "errorHandling": {
+    "standardErrors": [
+      {
+        "code": "TASK_NOT_FOUND",
+        "httpStatus": 404,
+        "description": "Task does not exist or does not belong to the authenticated user"
+      },
+      {
+        "code": "VALIDATION_ERROR",
+        "httpStatus": 422,
+        "description": "Input validation failed (e.g., empty title, invalid user_id format)"
+      },
+      {
+        "code": "UNAUTHORIZED",
+        "httpStatus": 401,
+        "description": "User authentication failed or user_id mismatch"
+      },
+      {
+        "code": "INTERNAL_ERROR",
+        "httpStatus": 500,
+        "description": "Unexpected server error (database connection, etc.)"
+      }
+    ]
+  }
+}

@@ -1,0 +1,374 @@
+openapi: 3.1.0
+info:
+  title: AI Todo Chatbot API
+  description: |
+    REST API for AI-powered conversational todo management system.
+    All endpoints require JWT authentication via Bearer token.
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: https://api.todo-chatbot.example.com/api/v1
+    description: Production server
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns API health status (no authentication required)
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /{user_id}/chat:
+    post:
+      summary: Send chat message
+      description: |
+        Send a message to the AI assistant and receive a response.
+        The assistant will interpret the message and perform task operations
+        using MCP tools. Context is reconstructed from database on each request.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: User UUID (must match JWT sub claim)
+          schema:
+            type: string
+            format: uuid
+            example: "550e8400-e29b-41d4-a716-446655440000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Successful response from AI assistant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /{user_id}/conversations:
+    get:
+      summary: List user conversations
+      description: Retrieve all conversations for the authenticated user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      summary: Create new conversation
+      description: Start a new conversation with the AI assistant
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /{user_id}/conversations/{conversation_id}:
+    get:
+      summary: Get conversation details
+      description: Retrieve a specific conversation with message history
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Conversation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from Better Auth (user_id in sub claim)
+
+  schemas:
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: User's natural language message
+          example: "Add a task to buy milk tomorrow"
+        conversation_id:
+          type: integer
+          nullable: true
+          description: Existing conversation ID (null to create new conversation)
+          example: 123
+
+    ChatResponse:
+      type: object
+      properties:
+        conversation_id:
+          type: integer
+          description: Conversation ID for this exchange
+          example: 123
+        message:
+          type: string
+          description: AI assistant's response
+          example: "Done! I've added 'Buy milk' to your list."
+        tool_calls:
+          type: array
+          description: List of tool operations performed
+          items:
+            $ref: '#/components/schemas/ToolCall'
+        timestamp:
+          type: string
+          format: date-time
+
+    ToolCall:
+      type: object
+      properties:
+        tool:
+          type: string
+          description: Name of the MCP tool called
+          example: "add_task"
+        arguments:
+          type: object
+          description: Arguments passed to the tool
+          example:
+            user_id: "550e8400-e29b-41d4-a716-446655440000"
+            title: "Buy milk"
+        result:
+          type: object
+          description: Result returned by the tool
+          example:
+            task_id: 42
+            title: "Buy milk"
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123
+        user_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        message_count:
+          type: integer
+          description: Total number of messages in conversation
+          example: 8
+
+    ConversationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Conversation'
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 456
+        conversation_id:
+          type: integer
+          example: 123
+        role:
+          type: string
+          enum: [user, assistant]
+          example: "user"
+        content:
+          type: string
+          example: "Add a task to buy milk"
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      required:
+        - error
+        - code
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Invalid or expired token"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "INVALID_TOKEN"
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: object
+          description: Additional error context (optional)
+
+  responses:
+    Unauthorized:
+      description: Authentication failed (missing or invalid JWT)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Invalid or expired token"
+            code: "INVALID_TOKEN"
+            timestamp: "2026-01-24T10:30:00Z"
+
+    Forbidden:
+      description: Authorization failed (user_id mismatch)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Forbidden: user_id mismatch"
+            code: "FORBIDDEN"
+            timestamp: "2026-01-24T10:30:00Z"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Conversation not found"
+            code: "NOT_FOUND"
+            timestamp: "2026-01-24T10:30:00Z"
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Message cannot be empty"
+            code: "VALIDATION_ERROR"
+            timestamp: "2026-01-24T10:30:00Z"
+            details:
+              field: "message"
+              constraint: "minLength"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "An unexpected error occurred"
+            code: "INTERNAL_ERROR"
+            timestamp: "2026-01-24T10:30:00Z"
