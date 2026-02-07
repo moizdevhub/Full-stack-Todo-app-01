@@ -16,12 +16,14 @@ interface ChatInterfaceProps {
   conversationId?: number | null;
   initialMessages?: ChatMessage[];
   onConversationCreated?: (conversationId: number) => void;
+  onMessageSent?: () => void;
 }
 
 export default function ChatInterface({
   conversationId: initialConversationId,
   initialMessages = [],
   onConversationCreated,
+  onMessageSent,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [conversationId, setConversationId] = useState<number | null>(
@@ -66,6 +68,9 @@ export default function ChatInterface({
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
+
+        // Notify parent component that a message was sent (for data sync)
+        onMessageSent?.();
       } catch (err) {
         console.error('Failed to send message:', err);
 
@@ -96,7 +101,7 @@ export default function ChatInterface({
         setIsLoading(false);
       }
     },
-    [conversationId, onConversationCreated]
+    [conversationId, onConversationCreated, onMessageSent]
   );
 
   return (

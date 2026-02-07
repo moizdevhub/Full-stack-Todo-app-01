@@ -1,26 +1,17 @@
 /**
- * Better Auth integration service
- * Handles JWT token management and user authentication
+ * Authentication service for AI Todo Chatbot
+ * Handles JWT token management using localStorage (same as todo app)
  */
 
 /**
- * Get the current JWT token from Better Auth
+ * Get the current JWT token from localStorage
  * @returns JWT token string or null if not authenticated
  */
 export async function getAuthToken(): Promise<string | null> {
   try {
-    // Better Auth stores tokens in cookies by default
-    // We'll retrieve it from the session
-    const response = await fetch('/api/auth/session', {
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const session = await response.json();
-    return session?.token || null;
+    // Get token from localStorage (same as todo app)
+    const token = localStorage.getItem('token');
+    return token;
   } catch (error) {
     console.error('Failed to get auth token:', error);
     return null;
@@ -56,11 +47,19 @@ export function getUserIdFromToken(token: string): string | null {
  * @returns User UUID or null if not authenticated
  */
 export async function getCurrentUserId(): Promise<string | null> {
-  const token = await getAuthToken();
-  if (!token) {
+  try {
+    // Get user from localStorage (same as todo app)
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      return null;
+    }
+
+    const user = JSON.parse(userStr);
+    return user.id || null;
+  } catch (error) {
+    console.error('Failed to get current user ID:', error);
     return null;
   }
-  return getUserIdFromToken(token);
 }
 
 /**

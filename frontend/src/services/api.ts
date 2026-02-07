@@ -107,7 +107,7 @@ export async function sendChatMessage(request: ChatRequest): Promise<ChatRespons
     throw new ApiClientError('User ID not found', 'USER_ID_MISSING', 401);
   }
 
-  const response = await fetchWithAuth(`${API_BASE_URL}/${userId}/chat`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/chat/${userId}/chat`, {
     method: 'POST',
     body: JSON.stringify(request),
   });
@@ -133,7 +133,7 @@ export async function listConversations(
     offset: offset.toString(),
   });
 
-  const response = await fetchWithAuth(`${API_BASE_URL}/${userId}/conversations?${params}`);
+  const response = await fetchWithAuth(`${API_BASE_URL}/chat/${userId}/conversations?${params}`);
 
   return response.json();
 }
@@ -148,7 +148,7 @@ export async function createConversation(): Promise<Conversation> {
     throw new ApiClientError('User ID not found', 'USER_ID_MISSING', 401);
   }
 
-  const response = await fetchWithAuth(`${API_BASE_URL}/${userId}/conversations`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/chat/${userId}/conversations`, {
     method: 'POST',
   });
 
@@ -166,7 +166,7 @@ export async function getConversation(conversationId: number): Promise<Conversat
   }
 
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/${userId}/conversations/${conversationId}`
+    `${API_BASE_URL}/chat/${userId}/conversations/${conversationId}`
   );
 
   return response.json();
